@@ -1,9 +1,9 @@
 name: Build iOS IPA
 
 on:
-  push:  
+  push:   
     branches: [ main ]
-  pull_request:
+  pull_request: 
     branches: [ main ]
   workflow_dispatch:  # 允许手动触发
 
@@ -18,11 +18,11 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:  
-        xcode-version:  latest-stable
+        xcode-version: latest-stable
     
     - name: Import Certificate
       env:
-        P12_CERTIFICATE: ${{ secrets.P12_CERTIFICATE }}
+        P12_CERTIFICATE:  ${{ secrets.P12_CERTIFICATE }}
         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
       run: |
         # 创建临时 keychain
@@ -43,7 +43,7 @@ jobs:
     
     - name: Import Provisioning Profile
       env:  
-        MOBILEPROVISION: ${{ secrets. MOBILEPROVISION }}
+        MOBILEPROVISION:  ${{ secrets.MOBILEPROVISION }}
       run: |
         # 创建 provisioning profile 目录
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
@@ -55,6 +55,13 @@ jobs:
         # 获取 UUID 并复制到正确位置
         UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /dev/stdin <<< $(security cms -D -i "$PROVISION_PATH"))
         cp "$PROVISION_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
+        
+        echo "Provisioning Profile UUID: $UUID"
+    
+    - name: List Available Schemes
+      run: |
+        echo "Available schemes:"
+        xcodebuild -project CameraAccess.xcodeproj -list
     
     - name: Build Archive
       run: |
@@ -62,16 +69,19 @@ jobs:
           -scheme TurboMeta \
           -configuration Release \
           -archivePath $RUNNER_TEMP/TurboMeta.xcarchive \
+          -destination 'generic/platform=iOS' \
           archive \
           CODE_SIGN_STYLE=Manual \
-          DEVELOPMENT_TEAM=XHTH2G7Q5Y
+          DEVELOPMENT_TEAM=XHTH2G7Q5Y \
+          PRODUCT_BUNDLE_IDENTIFIER=com.meta.wearables.external.CameraAccess \
+          PROVISIONING_PROFILE_SPECIFIER="8a6baa6e-e182-4230-81d0-4d4ad08bb063"
     
-    - name: Export IPA
+    - name:  Export IPA
       run: |
         # 创建 ExportOptions. plist
-        cat > $RUNNER_TEMP/ExportOptions.plist <<EOF
+        cat > $RUNNER_TEMP/ExportOptions.plist <<'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <! DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
           <key>method</key>
@@ -80,6 +90,11 @@ jobs:
           <string>XHTH2G7Q5Y</string>
           <key>signingStyle</key>
           <string>manual</string>
+          <key>provisioningProfiles</key>
+          <dict>
+            <key>com.meta.wearables.external.CameraAccess</key>
+            <string>8a6baa6e-e182-4230-81d0-4d4ad08bb063</string>
+          </dict>
           <key>compileBitcode</key>
           <false/>
           <key>stripSwiftSymbols</key>
@@ -98,13 +113,13 @@ jobs:
       with:
         name:  TurboMeta-IPA
         path: ${{ runner.temp }}/export/*. ipa
-        retention-days: 30
+        retention-days:  30
     
     - name: Display Download Instructions
       run: |
         echo "✅ IPA 构建成功！"
         echo "📱 下载方法："
-        echo "1. 进入 GitHub Actions 页面"
+        echo "1. 进入 https://github.com/aomier/meta/actions"
         echo "2. 点击这次运行的工作流"
         echo "3. 在页面底部的 Artifacts 区域下载 TurboMeta-IPA"
-        echo "4. 解压后使用 iTunes、Xcode 或其他工具安装到您的 iPhone"
+        echo "4. 解压后使用工具安装到您的 iPhone"
